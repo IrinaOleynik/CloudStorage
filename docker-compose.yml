@@ -1,0 +1,43 @@
+version: '3'
+services:
+  app:
+    build:
+      context: .
+    ports:
+      - "8090:8090"
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://database:5432/postgres
+      SPRING_DATASOURCE_USERNAME: username
+      SPRING_DATASOURCE_PASSWORD: password
+      SPRING_JPA_HIBERNATE_DDL_AUTO: none
+
+
+  database:
+    image: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: username
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  liquibase:
+    image: liquibase/liquibase
+    command: --url=jdbc:postgresql://database:5432/postgres --username=postgres --password=ira1999 --changeLogFile=db.changelog-master.yaml update
+    volumes:
+      - ./src/main/resources/db/changelog/db.changelog-master.yaml:/liquibase/db.changelog-master.yaml
+      - ./src/main/resources/db/changelog/migrations:/liquibase/migrations
+    depends_on:
+      - database
+
+volumes:
+  postgres_data:
