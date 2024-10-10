@@ -17,7 +17,7 @@ import java.util.Map;
 public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtUtils jwtUtils;
-    private Map<String, String> tokenBlackList = new HashMap<>();
+    private Map<String, String> tokenWhiteList = new HashMap<>();
 
     public AuthService(AuthenticationManager authenticationManager, JwtUtils jwtUtils) {
         this.authenticationManager = authenticationManager;
@@ -32,7 +32,10 @@ public class AuthService {
             SecurityContextHolder.getContext()
                     .setAuthentication(authentication);
 
-            return jwtUtils.generateJwtToken(authentication);
+            String jwt = jwtUtils.generateJwtToken(authentication);
+            tokenWhiteList.put(jwtUtils.getUserNameFromJwtToken(jwt), jwt);
+            return jwt;
+
         } catch (AuthenticationException ex) {
             throw new BadCredentialsException("Bad credentials");
         }
@@ -40,11 +43,11 @@ public class AuthService {
 
     public void logoutUser(String authToken) {
         String jwt = jwtUtils.parseAuthToken(authToken);
-        tokenBlackList.put(jwtUtils.getUserNameFromJwtToken(jwt), jwt);
+        tokenWhiteList.remove(jwtUtils.getUserNameFromJwtToken(jwt));
     }
 
-    public boolean isBlacklisted(String username, String token) {
-        String blacklistedToken = tokenBlackList.get(username);
+    public boolean isWhitelisted(String username, String token) {
+        String blacklistedToken = tokenWhiteList.get(username);
         return blacklistedToken != null && blacklistedToken.equals(token);
     }
 }

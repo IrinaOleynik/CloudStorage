@@ -37,7 +37,7 @@ public class AuthTokenFilter extends OncePerRequestFilter {
 
                 String username = jwtUtils.getUserNameFromJwtToken(jwt);
 
-                if (authService.isBlacklisted(username, jwt)) {
+                if (!authService.isWhitelisted(username, jwt)) {
                     throw new UnauthorizedException("Token is blacklisted");
                 }
 
