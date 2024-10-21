@@ -31,9 +31,6 @@ class CloudStorageControllerTest extends SpringBootApplicationTest {
     private CloudStorageService cloudStorageService;
 
     @Autowired
-    private ObjectMapper objectMapper;
-
-    @Autowired
     private FileRepository fileRepository;
 
     private final String FILE_PATH = "/file";
@@ -43,11 +40,12 @@ class CloudStorageControllerTest extends SpringBootApplicationTest {
             MediaType.TEXT_PLAIN_VALUE, "Hello, World!".getBytes());
     private final String validToken = "Bearer eyJhbGciOiJIUzM4NCJ9.eyJlbWFpbCI6InVzZXIxQGdtYWlsLmNvbSIsInN1YiI6InVzZXI" +
             "xQGdtYWlsLmNvbSIsImlhdCI6MTcyODIyMTQ1Nn0.w-gTpu7rUil8i-mbTngbaI7rpKNBnoTxLNxySN5aLKEQNmgUzl0Mas5B1iZJr3L4";
+    private final String owner = "user1@gmail.com";
 
     @BeforeEach
     void setUp() throws Exception {
         fileRepository.deleteAll();
-        cloudStorageService.uploadFile(validToken, filename, file);
+        cloudStorageService.uploadFile(owner, filename, file);
     }
 
     @Test
@@ -97,7 +95,6 @@ class CloudStorageControllerTest extends SpringBootApplicationTest {
         List<FileResponse> files = Arrays.asList(
                 new FileResponse(filename, file.getSize())
         );
-
         mockMvc.perform(get(LIST_PATH)
                         .param("limit", "10")
                         .header("auth-token", validToken))

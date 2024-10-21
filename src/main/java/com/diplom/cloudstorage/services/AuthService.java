@@ -1,8 +1,9 @@
 package com.diplom.cloudstorage.services;
 
-import com.diplom.cloudstorage.dto.LoginRequest;
 import com.diplom.cloudstorage.exceptions.BadCredentialsException;
 import com.diplom.cloudstorage.security.JwtUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -17,37 +18,45 @@ import java.util.Map;
 public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtUtils jwtUtils;
-    private Map<String, String> tokenWhiteList = new HashMap<>();
+    private Map<String, String> tokenWhiteList;
+    private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
 
-    public AuthService(AuthenticationManager authenticationManager, JwtUtils jwtUtils) {
+    public AuthService(AuthenticationManager authenticationManager, JwtUtils jwtUtils, Map<String, String> tokenWhiteList) {
         this.authenticationManager = authenticationManager;
         this.jwtUtils = jwtUtils;
+        this.tokenWhiteList = tokenWhiteList;
     }
 
-    public String loginUser(LoginRequest loginRequest) {
+    public String loginUser(String login, String password) {
+        logger.info("Entering loginUser method with login: {}", login);
         try {
             Authentication authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
-                    loginRequest.getLogin(), loginRequest.getPassword()));
+                    login, password));
 
             SecurityContextHolder.getContext()
                     .setAuthentication(authentication);
 
             String jwt = jwtUtils.generateJwtToken(authentication);
-            tokenWhiteList.put(jwtUtils.getUserNameFromJwtToken(jwt), jwt);
+            tokenWhiteList.put(login, jwt);
+            logger.info("User logged in successfully: {}", login);
             return jwt;
-
         } catch (AuthenticationException ex) {
+            logger.error("Bad credentials for login: {}", login, ex);
             throw new BadCredentialsException("Bad credentials");
         }
     }
 
-    public void logoutUser(String authToken) {
-        String jwt = jwtUtils.parseAuthToken(authToken);
-        tokenWhiteList.remove(jwtUtils.getUserNameFromJwtToken(jwt));
+    public void logoutUser(String owner) {
+        logger.info("Entering logoutUser method with owner: {}", owner);
+        tokenWhiteList.remove(owner);
+        logger.info("User logged out successfully: {}", owner);
     }
 
     public boolean isWhitelisted(String username, String token) {
+        logger.info("Entering isWhitelisted method with username: {}", username);
         String blacklistedToken = tokenWhiteList.get(username);
-        return blacklistedToken != null && blacklistedToken.equals(token);
+        boolean isWhitelisted = blacklistedToken != null && blacklistedToken.equals(token);
+        logger.info("User whitelisted status: {} for username: {}", isWhitelisted, username);
+        return isWhitelisted;
     }
 }

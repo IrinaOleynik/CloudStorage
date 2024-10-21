@@ -1,10 +1,8 @@
 package com.diplom.cloudstorage.services;
 
-import com.diplom.cloudstorage.dto.FileResponse;
 import com.diplom.cloudstorage.entites.File;
 import com.diplom.cloudstorage.exceptions.InvalidInputDataException;
 import com.diplom.cloudstorage.repositories.FileRepository;
-import com.diplom.cloudstorage.security.JwtUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import org.mockito.InjectMocks;
@@ -17,7 +15,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -25,15 +22,11 @@ import static org.mockito.Mockito.*;
 class CloudStorageServiceTest {
 
     @Mock
-    private JwtUtils jwtUtils;
-
-    @Mock
     private FileRepository fileRepository;
 
     @InjectMocks
     private CloudStorageService cloudStorageService;
 
-    private final String authToken = UUID.randomUUID().toString();
     private final String filename = "test.txt";
     private final MultipartFile file = new MockMultipartFile(
             "file", filename, "text/plain", "Hello World".getBytes());
@@ -47,9 +40,7 @@ class CloudStorageServiceTest {
     @Test
     void uploadFileSuccess() throws IOException {
 
-        when(jwtUtils.getUserNameFromAuthToken(authToken)).thenReturn(owner);
-
-        cloudStorageService.uploadFile(authToken, filename, file);
+        cloudStorageService.uploadFile(owner, filename, file);
 
         verify(fileRepository, times(1)).save(any(File.class));
     }
@@ -57,7 +48,7 @@ class CloudStorageServiceTest {
     @Test
     void testUploadFileInvalidInput() throws IOException {
 
-        assertThrows(InvalidInputDataException.class, () -> cloudStorageService.uploadFile(authToken, null, null));
+        assertThrows(InvalidInputDataException.class, () -> cloudStorageService.uploadFile(owner, null, null));
         verify(fileRepository, never()).save(any(File.class));
     }
 
@@ -69,11 +60,10 @@ class CloudStorageServiceTest {
                 new File("text/plain", "World".getBytes(), "file2.txt", owner, 200L)
         );
 
-        when(jwtUtils.getUserNameFromAuthToken(authToken)).thenReturn(owner);
         when(fileRepository.findAllByOwner(owner)).thenReturn(Optional.of(fileList));
 
         int limit = 10;
-        List<FileResponse> result = cloudStorageService.getFiles(authToken, limit);
+        List<File> result = cloudStorageService.getFiles(owner, limit);
 
         assertEquals(2, result.size());
         verify(fileRepository, times(1)).findAllByOwner(owner);
@@ -82,16 +72,14 @@ class CloudStorageServiceTest {
     @Test
     void testGetFilesInvalidInput() {
 
-        assertThrows(InvalidInputDataException.class, () -> cloudStorageService.getFiles(authToken, 0));
+        assertThrows(InvalidInputDataException.class, () -> cloudStorageService.getFiles(owner, 0));
         verify(fileRepository, never()).findAllByOwner(anyString());
     }
 
     @Test
     void testDeleteFileSuccess() {
 
-        when(jwtUtils.getUserNameFromAuthToken(authToken)).thenReturn(owner);
-
-        cloudStorageService.deleteFile(authToken, filename);
+        cloudStorageService.deleteFile(owner, filename);
 
         verify(fileRepository, times(1)).removeByFilenameAndOwner(filename, owner);
     }
@@ -99,7 +87,7 @@ class CloudStorageServiceTest {
     @Test
     void testDeleteFileInvalidInput() {
 
-        assertThrows(InvalidInputDataException.class, () -> cloudStorageService.deleteFile(authToken, null));
+        assertThrows(InvalidInputDataException.class, () -> cloudStorageService.deleteFile(owner, null));
         verify(fileRepository, never()).removeByFilenameAndOwner(anyString(), anyString());
     }
 
@@ -108,10 +96,9 @@ class CloudStorageServiceTest {
 
         File file = new File("text/plain", "Hello".getBytes(), filename, owner, 100L);
 
-        when(jwtUtils.getUserNameFromAuthToken(authToken)).thenReturn(owner);
         when(fileRepository.findByFilenameAndOwner(filename, owner)).thenReturn(file);
 
-        File result = cloudStorageService.downloadFile(authToken, filename);
+        File result = cloudStorageService.downloadFile(owner, filename);
 
         assertNotNull(result);
         assertEquals(filename, result.getFilename());
@@ -121,7 +108,7 @@ class CloudStorageServiceTest {
     @Test
     void testDownloadFileInvalidInput() {
 
-        assertThrows(InvalidInputDataException.class, () -> cloudStorageService.downloadFile(authToken, null));
+        assertThrows(InvalidInputDataException.class, () -> cloudStorageService.downloadFile(owner, null));
         verify(fileRepository, never()).findByFilenameAndOwner(anyString(), anyString());
     }
 
@@ -130,9 +117,7 @@ class CloudStorageServiceTest {
 
         String newFilename = "newTest.txt";
 
-        when(jwtUtils.getUserNameFromAuthToken(authToken)).thenReturn(owner);
-
-        cloudStorageService.renameFile(authToken, filename, newFilename);
+        cloudStorageService.renameFile(owner, filename, newFilename);
 
         verify(fileRepository, times(1)).renameFile(filename, newFilename, owner);
     }
@@ -140,7 +125,7 @@ class CloudStorageServiceTest {
     @Test
     void testRenameFileInvalidInput() {
 
-        assertThrows(InvalidInputDataException.class, () -> cloudStorageService.renameFile(authToken, null, null));
+        assertThrows(InvalidInputDataException.class, () -> cloudStorageService.renameFile(owner, null, null));
         verify(fileRepository, never()).renameFile(anyString(), anyString(), anyString());
     }
 }

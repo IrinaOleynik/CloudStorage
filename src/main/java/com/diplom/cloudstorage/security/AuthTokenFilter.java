@@ -7,6 +7,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -20,6 +22,7 @@ import java.io.IOException;
 
 @Component
 public class AuthTokenFilter extends OncePerRequestFilter {
+    private static final Logger logger = LoggerFactory.getLogger(AuthTokenFilter.class);
     @Autowired
     private AuthService authService;
 
@@ -31,13 +34,18 @@ public class AuthTokenFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+        logger.info("Entering doFilterInternal method for request: {}", request.getRequestURI());
+
         try {
             String jwt = parseJwt(request);
             if (jwt != null && jwtUtils.validateJwtToken(jwt)) {
+                logger.debug("JWT token validated successfully");
 
                 String username = jwtUtils.getUserNameFromJwtToken(jwt);
+                logger.debug("Username extracted from JWT token: {}", username);
 
                 if (!authService.isWhitelisted(username, jwt)) {
+                    logger.error("Token is blacklisted for user: {}", username);
                     throw new UnauthorizedException("Token is blacklisted");
                 }
 
@@ -47,21 +55,28 @@ public class AuthTokenFilter extends OncePerRequestFilter {
 
                 SecurityContextHolder.getContext()
                         .setAuthentication(authentication);
+                logger.info("User authenticated successfully: {}", username);
             }
         } catch (Exception e) {
+            logger.error("Error during authentication", e);
             throw new UnauthorizedException(e.getMessage());
         }
 
         filterChain.doFilter(request, response);
+        logger.debug("Exiting doFilterInternal method for request: {}", request.getRequestURI());
     }
 
     private String parseJwt(HttpServletRequest request) {
+        logger.debug("Entering parseJwt method for request: {}", request.getRequestURI());
         String headerAuth = request.getHeader("auth-token");
 
         if (StringUtils.hasText(headerAuth) && headerAuth.startsWith("Bearer ")) {
-            return headerAuth.substring(7);
+            String jwt = headerAuth.substring(7);
+            logger.debug("JWT token parsed successfully from header");
+            return jwt;
         }
 
+        logger.debug("No valid JWT token found in header");
         return null;
     }
 }
